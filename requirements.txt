@@ -1,0 +1,9 @@
+wheel
+pyautogui
+keyboard
+smtplib
+shutil
+PyQt5
+email
+git
+ssl
