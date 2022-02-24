@@ -1,5 +1,5 @@
 from Resources.Imports import *
-import install
+from install import repair, verify
 import random
 import time
 import sys
@@ -9,6 +9,8 @@ class MainScreen(Widget):
         super().__init__()
         self.window_width, self.window_height = 1200, 800
         self.setMinimumSize(self.window_width, self.window_height)
+        self.setWindowIcon(Icon("./Assets/ezruh.ico"))
+        self.setWindowTitle("Ezruh")
 
         layout = VBoxLayout()
         self.setLayout(layout)
@@ -22,14 +24,15 @@ class SplashScreen(Widget):
         self.setAttribute(Qt.WA_TranslucentBackground)
 
         self.counter = 0
-        self.repeat = 3
+        self.repeat = 4
         self.n = 100 # total instance
 
         self.initUI()
+        self.rp_queue = repair.Queue()
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.loading)
-        self.timer.start(5)
+        self.timer.start(7)
 
     def initUI(self):
         layout = VBoxLayout()
@@ -51,7 +54,9 @@ class SplashScreen(Widget):
         self.labelDescription.resize(self.width() - 10, 50)
         self.labelDescription.move(0, self.labelTitle.height())
         self.labelDescription.setObjectName('LabelDesc')
-        self.labelDescription.setText("Locating script [text]")
+        self.labelDescription.setText("Scanning Ezruh Files...")
+        if not verify.build.files()["output"]:
+            repair.reinstall()
         self.labelDescription.setAlignment(Qt.AlignCenter)
 
         self.progressBar = ProgressBar(self.frame)
@@ -76,22 +81,22 @@ class SplashScreen(Widget):
         if self.counter == int(self.n * 0.3):
             if self.repeat == 3:
                 self.labelDescription.setText("Verifying script [text]")
-                if not install.verify_build_file("Modules/text.py"):
-                    install.repair("Modules")
+                if not verify.build.file("Modules/text.py"):
+                    self.rp_queue.add_file("Modules/text.py")
             elif self.repeat == 2:
                 self.labelDescription.setText("Verifying script [email]")
-                if not install.verify_build_file("Modules/mailer.py"):
-                    install.repair("Modules")
+                if not verify.build.file("Modules/mailer.py"):
+                    self.rp_queue.add_file("Modules/mailer.py")
             elif self.repeat == 1:
                 self.labelDescription.setText("Verifying Resources & Assets")
-                if not install.verify_build_folder("Resources"):
-                    install.repair("Resources")
+                if not verify.build.folder("Resources"):
+                    self.rp_queue.add_folder("Resources")
                 
-                if not install.verify_build_folder("Assets"):
-                    install.repair("Assets")
+                if not verify.build.folder("Assets"):
+                    self.rp_queue.add_folder("Assets")
                 
-                if not install.verify_build_folder("Modules"):
-                    install.repair("Modules")
+                if not verify.build.folder("Modules"):
+                    self.rp_queue.add_folder("Modules")
         elif self.counter == int(self.n * 0.6):
             if self.repeat == 3:
                 self.labelDescription.setText("Retrieving script [text]")
@@ -110,7 +115,9 @@ class SplashScreen(Widget):
                 self.repeat -= 1
                 self.counter = 0
 
-                if self.repeat == 2:
+                if self.repeat == 3:
+                    self.labelDescription.setText("Locating script [text]")
+                elif self.repeat == 2:
                     self.labelDescription.setText("Locating script [email]")
                 elif self.repeat == 1:
                     self.labelDescription.setText("Locating Resources & Assets")
@@ -160,6 +167,7 @@ if __name__ == '__main__':
     
     splash = SplashScreen()
     splash.show()
+    repair(queue=splash.rp_queue.setup_for_processing())
 
     try:
         sys.exit(app.exec_())

@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import \
     QVBoxLayout as VBoxLayout
 
 from PyQt5.QtCore import QSize, Qt, QTimer
+from PyQt5.QtGui import QIcon as Icon
 
 __all__ = [
     "MainWindow",
@@ -20,5 +21,7 @@ __all__ = [
 
     "QSize",
     "QTimer",
-    "Qt"
+    "Qt",
+
+    "Icon"
 ]
