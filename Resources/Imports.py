@@ -1,3 +1,6 @@
+from Resources.required_modules import pymodules
+pymodules.install(pymodules.presets.resources("imports"))
+
 from PyQt5.QtWidgets import \
     QApplication as App, QWidget as Widget, \
     QLabel as Label, QPushButton as Button, \

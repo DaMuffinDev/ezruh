@@ -1,6 +1,9 @@
+from Resources.required_modules import pymodules
+pymodules.install(pymodules.presets.modules("text"))
+
 from pyautogui import typewrite, press
-from time import sleep as wait
 from keyboard import is_pressed
+from time import sleep as wait
 import random
 
 inf = -1

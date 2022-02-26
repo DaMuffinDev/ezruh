@@ -4,6 +4,9 @@ import random
 import time
 import sys
 
+if not verify.build.required_modules():
+    repair.install_missing_modules()
+
 class MainScreen(Widget):
     def __init__(self):
         super().__init__()
@@ -55,7 +58,7 @@ class SplashScreen(Widget):
         self.labelDescription.move(0, self.labelTitle.height())
         self.labelDescription.setObjectName('LabelDesc')
         self.labelDescription.setText("Scanning Ezruh Files...")
-        if not verify.build.files()["output"]:
+        if not verify.build.files()["output"] or not verify.build.folders()["output"]:
             repair.reinstall()
         self.labelDescription.setAlignment(Qt.AlignCenter)
 
@@ -136,22 +139,18 @@ if __name__ == '__main__':
             font-size: 40px;
             color: #000;
         }
-
         #LabelDesc {
             font-size: 20px;
             color: #000;
         }
-
         #LabelLoading {
             font-size: 25px;
             color: #000;
         }
-
         QFrame {
             background-color: #FFFFFF;
             color: rgb(220, 220, 220);
         }
-
         QProgressBar {
             background-color: #cccccc;
             color: #000;
@@ -159,7 +158,6 @@ if __name__ == '__main__':
             text-align: center;
             font-size: 15px;
         }
-
         QProgressBar::chunk {
             background-color: #63FFA8;
         }
@@ -167,7 +165,8 @@ if __name__ == '__main__':
     
     splash = SplashScreen()
     splash.show()
-    repair(queue=splash.rp_queue.setup_for_processing())
+    if len(splash.rp_queue.get_folders()) > 0 or len(splash.rp_queue.get_files()) > 0:
+        repair(queue=splash.rp_queue.setup_for_processing())
 
     try:
         sys.exit(app.exec_())

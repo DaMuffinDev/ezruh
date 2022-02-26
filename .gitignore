@@ -1,3 +1,10 @@
 __pycache__
 *.pyc
 testing
+test.py
+*.spec
+build
+dist
+venv
+deprecated
+future

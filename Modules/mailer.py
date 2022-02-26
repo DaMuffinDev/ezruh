@@ -1,3 +1,6 @@
+from Resources.required_modules import pymodules
+pymodules.install(pymodules.presets.modules("mailer"))
+
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import smtplib
