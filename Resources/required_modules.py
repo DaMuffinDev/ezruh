@@ -1,5 +1,6 @@
-from Resources._variables import rv_install, getitem_init, getitem_call
-from newinstall import install_modules
+from ._variables import rv_install, getitem_init, getitem_call
+import subprocess
+import sys
 
 """
 [MODULES: TEXT]
@@ -32,7 +33,8 @@ class _pymodules:
         modules = rv_install.Modules()
         modules.set_required(pymodule.modules)
         if modules.missing:
-            install_modules(modules.missing)
+            for module in modules.missing:
+                subprocess.call(f"{sys.executable} -m pip install {module}")
 
     class _pymodule_preset:
         __init__ = getitem_init
@@ -44,6 +46,8 @@ class _pymodules:
 
             _run = {}
         
+        installer = ["GitPython"]
+
         @_module_preset
         def modules(self, script: str):
             self._run["text"] = ["pyautogui", "keyboard"]

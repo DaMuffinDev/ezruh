@@ -4,8 +4,8 @@ import random
 import time
 import sys
 
-if not verify.build.required_modules():
-    repair.install_missing_modules()
+if not verify.required_modules():
+    repair.missing_modules()
 
 class MainScreen(Widget):
     def __init__(self):
@@ -58,8 +58,6 @@ class SplashScreen(Widget):
         self.labelDescription.move(0, self.labelTitle.height())
         self.labelDescription.setObjectName('LabelDesc')
         self.labelDescription.setText("Scanning Ezruh Files...")
-        if not verify.build.files()["output"] or not verify.build.folders()["output"]:
-            repair.reinstall()
         self.labelDescription.setAlignment(Qt.AlignCenter)
 
         self.progressBar = ProgressBar(self.frame)
@@ -85,21 +83,21 @@ class SplashScreen(Widget):
             if self.repeat == 3:
                 self.labelDescription.setText("Verifying script [text]")
                 if not verify.build.file("Modules/text.py"):
-                    self.rp_queue.add_file("Modules/text.py")
+                    self.rp_queue.add(files=["Modules/text.py"])
             elif self.repeat == 2:
                 self.labelDescription.setText("Verifying script [email]")
                 if not verify.build.file("Modules/mailer.py"):
-                    self.rp_queue.add_file("Modules/mailer.py")
+                    self.rp_queue.add(files=["Modules/mailer.py"])
             elif self.repeat == 1:
                 self.labelDescription.setText("Verifying Resources & Assets")
                 if not verify.build.folder("Resources"):
-                    self.rp_queue.add_folder("Resources")
+                    self.rp_queue.add(folders=["Resources"])
                 
                 if not verify.build.folder("Assets"):
-                    self.rp_queue.add_folder("Assets")
+                    self.rp_queue.add(folders=["Assets"])
                 
                 if not verify.build.folder("Modules"):
-                    self.rp_queue.add_folder("Modules")
+                    self.rp_queue.add(folders=["Modules"])
         elif self.counter == int(self.n * 0.6):
             if self.repeat == 3:
                 self.labelDescription.setText("Retrieving script [text]")
@@ -165,7 +163,7 @@ if __name__ == '__main__':
     
     splash = SplashScreen()
     splash.show()
-    if len(splash.rp_queue.get_folders()) > 0 or len(splash.rp_queue.get_files()) > 0:
+    if splash.rp_queue.get("folders") or splash.rp_queue.get("files"):
         repair(queue=splash.rp_queue.setup_for_processing())
 
     try:

@@ -1,9 +1,9 @@
-from _variables import getitem_init, getitem_call
+from ._variables import getitem_init, getitem_call
 
 class _presets:
     class text:
         def __init__(self, getitem):
-            getitem_init(getitem)
+            getitem_init(self, getitem)
 
             class PresetObject:
                 def __init__(self):

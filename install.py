@@ -1,44 +1,37 @@
-from os import mkdir, environ, listdir, remove, rmdir
-from os.path import join, exists, isdir, isfile
-from Resources._variables import required
+from Resources._variables import rv_install, required, hash, float_numbers, \
+    getitem_call, getitem_init, join_lists, mkfile, remove_spaces
+from Resources.required_modules import pymodules
+from os import environ, mkdir, listdir, remove, rmdir
+from os.path import exists, join, isdir, isfile, basename
 from subprocess import call as system
 import platform
+import sys
 
-def install_required_modules():
-    pyinstaller = ["PyInstaller", "https://github.com/pyinstaller/pyinstaller/archive/develop.zip"]
-    required_modules = [
-        "setuptools",
-        "wheel",
-        "gitpython",
-        "pyautogui",
-        "keyboard",
-        "PyQt5",
-        "email",
-        "ssl",
-        pyinstaller[0],
-        pyinstaller[1]
-    ]
-    for module in required_modules:
-        try:
-            __import__(module)
-        except ImportError:
-            system(f"python -m pip install {module}")
+# Module Installation
+python = sys.executable
+modules = rv_install.Modules()
 
-try:
-    from shutil import move, rmtree
-    from git.util import rmtree as git_rmtree
-    from git import Repo
-except ImportError:
-    install_required_modules()
-    from shutil import move, rmtree
-    from git.util import rmtree as git_rmtree
-    from git import Repo
+def install_module(module):
+    system(f"{python} -m pip install {module}")
+    modules.update()
+
+def install_modules(modules):
+    for module in modules:
+        install_module(module)
+
+pymodules.install(pymodules.presets.installer)
+
+from git import Repo
+from git.util import rmtree as git_rmtree
+from shutil import move, rmtree
+
+# -- END --
 
 if platform.system() == "Windows":
-    destination = join(environ["LOCALAPPDATA"], "Programs")
+    base_build_directory = join(environ["LOCALAPPDATA"], "Programs")
 elif platform.system() == "Linux" or platform.system() == "Darwin":
-    destination = "/usr/local"
-build_folder = join(destination, "ezruh")
+    base_build_directory = "/usr/local"
+build_folder = join(base_build_directory, "ezruh")
 
 required_folders = {
     required.modules(): [
@@ -68,75 +61,103 @@ required_files = [
     required.license,
 ]
 
+exec_required_path = join(build_folder, "exec_required.txt")
+
+def update_required_exec_files():
+    if exists(exec_required_path):
+        with open(exec_required_path, "r") as file:
+            return remove_spaces(file.read().split("\n")) 
+    return []
+
+required_exec_files = update_required_exec_files()
+
+class __cleanup:
+    __init__ = getitem_init
+    __call__ = getitem_call
+
+    class Exclude:
+        def __init__(self, _list: list = None):
+            self.__exclude = [] if _list is None else _list
+
+        def get(self, item = None):
+            return self.__exclude if item is None else self.__getitem__(item)
+
+        def add(self, item):
+            self.__exclude.append(item)
+        
+        def remove(self, index):
+            del self.__exclude[index]
+
+        def __getitem__(self, index):
+            return self.__exclude[index]
+
+def os_list_join(dir, _list: list):
+    path_list = []
+    for item in _list:
+        path_list.append(join(dir, item))
+    return path_list
+
+@__cleanup
+def cleanup(self, exclude=[]):
+    cleanup_list = join_lists([
+        os_list_join(build_folder, required_files), 
+        os_list_join(build_folder, list(required_folders.keys())), 
+        os_list_join(build_folder, exclude)
+    ])
+    for item in listdir(build_folder):
+        item_dir = join_build_path(item)
+        if not item_dir in cleanup_list:
+            safe_remove(item_dir)
+
+cleanup_exclude = cleanup.Exclude()
+cleanup_exclude.add("exec_required.txt")
+
 git_url = "https://github.com/DaMuffinDev/ezruh.git"
-
-def get_requirements():
-    with open(required.requirements, "r") as file:
-        return file.read()
-
-def remove_git(dir):
-    git_rmtree(join(dir, ".git"))
-
 def clone(des):
     if exists(des):
-        return
+        des = hash(f"{des}{__import__('random').choice(float_numbers)}")
     Repo.clone_from(git_url, des)
-    remove_git(des)
+    git_rmtree(join(des, ".git"))
+    return des
 
-def create_build_folder(override=False):
-    if exists(build_folder): 
-        if not override: return
-        rmtree(build_folder)
-    mkdir(build_folder)
+class __verification:
+    __init__ = getitem_init
+    __call__ = getitem_call
 
-def install_ezruh_build():
-    tempo_build = join(build_folder, "build")
-    clone(tempo_build)
-    for item in listdir(tempo_build):
-        move(join(tempo_build, item), build_folder)
-
-    for file in [".gitignore", "README.md"]:
-        file_path = join(build_folder, file)
-        if exists(file_path):
-            remove(file_path)
+    def ezruh_folder(self):
+        if not exists(build_folder):
+            main()
     
-    for item in listdir(build_folder):
-        if not item in [*required_files, *list(required_folders.keys())]:
-            if isfile(item):
-                try: remove(item)
-                except Exception: pass
-            elif isdir(item):
-                try: rmtree(item)
-                except Exception: pass
-    create_main_executable()
+    def ezruh_installed(self):
+        if not exists(build_folder):
+            return False
 
-class Verification:
-    def __init__(self, getitem):
-        self._getitem = getitem
-        self.__doc__ = getitem.__doc__
+        required_exec_files = update_required_exec_files()
 
-    def __call__(self):
-        self._getitem(self)
+        required_items = join_lists([
+            required_files,
+            list(required_folders.keys()),
+            cleanup_exclude.get(),
+            required_exec_files
+        ])
 
-    class Build:
-        def __init__(self, getitem):
-            self.__doc__ = getitem.__doc__
+        found_items = 0
+        for item in listdir(build_folder):
+            item = basename(item)
+
+            if item in required_items:
+                found_items += 1
         
-        def required_modules(self):
-            required_modules = get_requirements().split("\n")
-            for module in required_modules:
-                try:
-                    __import__(module)
-                except ImportError:
-                    return False
+        return found_items == len(required_items)
+    
+    def required_modules(self):
+        if modules.missing:
             return True
-        
-        def module(self, module):
-            try:
-                __import__(module)
-                return True
-            except ImportError:
-                return False
+        return False
+
+    class __build:
+        __init__ = getitem_init
+        __call__ = getitem_call
 
         def get_folders(self):
             found_folders = []
@@ -155,7 +176,7 @@ class Verification:
                 if not folder in found_folders:
                     missing_folders.append(folder)
             
-            return {"output": len(missing_folders) == 0, "data": missing_folders}
+            return missing_folders
 
         def get_files(self):
             found_files = []
@@ -174,251 +195,192 @@ class Verification:
                 if not file in found_files:
                     missing_files.append(file)
 
-            return {"output": len(missing_files) == 0, "data": missing_files}
+            return missing_files
 
-    @Build
+    @__build
     def build(self):
         raise TypeError(f"{self} is not subscriptable.")
 
-@Verification
+@__verification
 def verify(self):
     """Used for verification of either (a) certain file(s) or folder(s)"""
     if not verify.build.files() or not verify.build.folders():
         return False
     return True
 
-class Repair:
-    def __init__(self, getitem, **kwargs):
-        self.__doc__ = getitem.__doc__
-        self.__getitem = getitem
-    
-    def __call__(self, file=None, folder=None, queue=None):
-        self.__getitem(self, file=file, folder=folder, queue=queue)
+def join_build_path(item):
+    return join(build_folder, item)
 
-    def cleanup(self):
+def safe_move(path, new_path, override=False):
+    if exists(join(build_folder, basename(path))):
+        if override:
+            safe_remove(join(build_folder, basename(path)))
+        else: return
+    move(path, new_path)
+
+def safe_remove(path):
+    if exists(path):
         try:
-            rmtree(join(build_folder, "_repair"))
+            rmtree(path)
         except Exception:
-            pass
+            if isdir(path):
+                rmdir(path)
+            elif isfile(path):
+                remove(path)
 
-        if exists(join(build_folder, ".git")):
-            remove_git(build_folder)
-        
-        for file in listdir(build_folder):
-            if isfile(file) and not file in required_files:
-                try:
-                    remove(file)
-                except Exception:
-                    pass
+def move_dir_items(dirs, new_dir, override=False):
+    for dir in dirs:
+        safe_move(dir, new_dir, override=override)
 
-    def reinstall(self):
-        try:
-            rmtree(build_folder)
-        except:
-            pass
-        main()
-    
-    def install_module(self, module):
-        system(f"python -m pip install {module}")
+# Repair
+class __repair:
+    __init__ = getitem_init
+    __call__ = getitem_call
 
     def install_missing_modules(self):
-        required_modules = get_requirements().split("\n")
-        missing_modules = []
-        for module in required_modules:
-            if not verify.build.module(module):
-                missing_modules.append(module)
-        
-        for module in missing_modules:
-            self.install_module(module)
+        install_modules(modules.missing)
 
     class Queue:
-        def __init__(self):
-            self.__file_queue = []
-            self.__folder_queue = []
+        def __init__(self, initial_files: list | None = None, initial_folders: list | None = None):
+            self.__files = [] if initial_files is None else initial_files
+            self.__folders = [] if initial_folders is None else initial_folders
+        
+        def get(self, _list):
+            return {
+                "files": self.__files,
+                "folders": self.__folders
+            }[_list.lower()]
+        
+        def __add_files(self, items: list):
+            for item in items:
+                self.__files.append(item)
+        
+        def __add_folders(self, items: list):
+            for item in items:
+                self.__folders.append(item)
 
-            class QueueFolderObject:
-                queue_object = True
-                def __init__(self, folders):
-                    self.folders = folders
-                
-            class QueueFileObject:
-                queue_object = True
-                def __init__(self, files):
-                    self.files = files
-            
-            self.QueueFileObject = QueueFileObject
-            self.QueueFolderObject = QueueFolderObject
-        
-        def get_files(self):
-            return self.QueueFileObject(self.__file_queue)
-        
-        def get_folders(self):
-            return self.QueueFolderObject(self.__folder_queue)
-        
-        def add(self, files, folders):
-            if len(files) > 0: self.add_files(files)
-            if len(folders) > 0: self.add_folders(folders)
-        
-        def add_file(self, file):
-            self.__file_queue.append(file)
-        
-        def add_folder(self, folder):
-            self.__folder_queue.append(folder)
-        
-        def add_folders(self, folders):
-            if not isinstance(folders, list): return
+        def add(self, files=None, folders=None):
+            if isinstance(files, list):
+                self.__add_files(files)
 
-            for folder in folders:
-                self.add_folder(folder)
+            if isinstance(folders, list):
+                self.__add_folders(folders)
+        
+        def remove(self, item, _list):
+            if _list.lower() in ["files", "file"]:
+                if item in self.__files:
+                    self.__files.remove(item)
+            elif _list.lower() in ["folders", "folder"]:
+                if item in self.__folders:
+                    self.__folders.remove(item)
 
-        def add_files(self, files):
-            if not isinstance(files, list): return
+        def clear(self, _list):
+            if _list.lower() in ["files", "file"]:
+                self.__files = []
+            elif _list.lower() in ["folders", "folder"]:
+                self.__folders = []
 
-            for file in files:
-                self.add_file(file)
-        
-        def remove_file(self, file):
-            if file in self.__file_queue:
-                self.__file_queue.remove(file)
-        
-        def remove_folder(self, folder):
-            if folder in self.__folder_queue:
-                self.__folder_queue.remove(folder)
-
-        def clear_folder(self):
-            self.__folder_queue = []
-        
-        def clear_file(self):
-            self.__file_queue = []
-        
-        def clear(self):
-            self.clear_file()
-            self.clear_folder()
-        
         def setup_for_processing(self):
-            return self.conjoin({"type": "folders", "data": self.__folder_queue}, {"type": "files", "data": self.__file_queue})
-        
-        def conjoin(self, folders, files):
-            return {"files": files, "folders": folders}
+            return {"files": self.__files, "folders": self.__folders}
 
-def remove_dir_items(path, exclude=[]):
-    for item in listdir(path):
-        if not item in exclude:
-            if isdir(item):
-                rmtree(join(path, item))
-            elif isfile(item):
-                remove(join(path, item))
+@__repair
+def repair(self, files=None, folders=None, queue=None):
+    verify.ezruh_folder()
 
-def join_lists(list1, list2):
-    new_list = []
-    for item in list1:
-        new_list.append(item)
-    
-    for item in list2:
-        new_list.append(item)
-    return new_list
-
-@Repair
-def repair(self, file=None, folder=None, queue=None):
-    if not exists(build_folder):
-        self.cleanup()
-        main()
-        return
-    
-    repair_dir = join(build_folder, "_repair")
-    if not queue is None:
-        clone(repair_dir)
-        remove_dir_items(repair_dir, join_lists(queue["files"], queue["folders"]))
-        
+    def _repair(items):
+        repair_dir = clone(join(build_folder, "_repair"))
         for item in listdir(repair_dir):
-            new_dir = join(build_folder, item)
-            if exists(new_dir):
-                rmtree(new_dir)
-            move(join(repair_dir, item), build_folder)
+            if item in items:
+                safe_move(join(repair_dir, item), build_folder, override=True)
+        cleanup(cleanup_exclude.get())
+
+    if queue is not None:
+        files = queue["files"]
+        folders = queue["folders"]
         
-        if exists(repair_dir): 
-            rmdir(repair_dir)
-        self.cleanup()
+        _repair(join_lists([files, folders]))
         return
+    
+    if not files is None:
+        _repair(files)
+    
+    if not folders is None:
+        _repair(folders)
+    cleanup(cleanup_exclude.get())
 
-    if not file is None:
-        clone(repair_dir)
-        remove_dir_items(repair_dir, [file])
-        new_dir = join(repair_dir, file)
-        if exists(new_dir):
-            rmtree(new_dir)
-        move(new_dir, build_folder)
+# Build
+def create_build_folder():
+    if exists(build_folder):
+        safe_remove(build_folder)
+    mkdir(build_folder)
 
-        if exists(repair_dir): 
-            rmdir(repair_dir)
-        self.cleanup()
-    elif not folder is None:
-        clone(repair_dir)
-        remove_dir_items(repair_dir, [folder])
-        new_dir = join(repair_dir, folder)
-        if exists(new_dir):
-            rmtree(new_dir)
-        move(new_dir, build_folder)
+def install_ezruh_build():
+    if not exists(build_folder):
+        create_build_folder()
 
-        if exists(repair_dir): 
-            rmdir(repair_dir)
-        self.cleanup()
+    build_dir = clone(join(build_folder, "build"))
+    files = os_list_join(build_dir, required_files)
+    folders = os_list_join(build_dir, list(required_folders.keys()))
+    move_dir_items(join_lists([files, folders]), build_folder, override=True)
 
-cleanup_exclude = ["Ezruh.exe"]
+    cleanup(cleanup_exclude.get())
+
 def create_main_executable():
+    verify.ezruh_folder()
     import PyInstaller.__main__
+
+    dist_path = join(build_folder, "exec_dist")
+    work_path = join(build_folder, "exec_build")
+
+    safe_remove(dist_path)
+    safe_remove(work_path)
+
     PyInstaller.__main__.run([
         "--distpath",
-        join(build_folder, "dist"),
+        dist_path,
         "--workpath",
-        join(build_folder, "build"),
+        work_path,
         "--specpath",
         build_folder,
         join(build_folder, required.main),
         "--name",
         "Ezruh"
     ])
-    build_dir = join(build_folder, "dist\\Ezruh")
-    for item in listdir(build_dir):
-        move(join(build_dir, item), build_folder)
-        cleanup_exclude.append(item)
-    
-    mainpy = join(build_folder, required.main)
-    if exists(mainpy):
-        remove(mainpy)
-    repair.cleanup()
 
-def cleanup():
-    for item in listdir(build_folder):
-        if not item in join_lists(join_lists(required_files, list(required_folders.keys())), cleanup_exclude):
-            item_dir = join(build_folder, item)
-            try:
-                rmtree(item_dir)
-            except:
-                if isdir(item_dir):
-                    rmdir(item_dir)
-                elif isfile(item_dir):
-                    remove(item_dir)
+    if exists(exec_required_path):
+        safe_remove(exec_required_path)
+    mkfile(exec_required_path)
+
+    with open(exec_required_path, "w") as file:
+        for item in listdir(join(dist_path, "Ezruh")):
+            new_item_dir, item_dir = join_build_path(item), join(join(dist_path, "Ezruh"), item)
+            if exists(new_item_dir):
+                safe_remove(new_item_dir)
+            else:
+                move(item_dir, build_folder)
+                file.write(f"{item}\n")
+                cleanup_exclude.add(item)
+    cleanup(cleanup_exclude.get())
 
 def main():
-    if exists(build_folder):
-        try:
-            rmtree(build_folder)
-        except:
-            pass
-    create_build_folder() # Create build folder
-    install_ezruh_build() # Install files and folders
-    install_required_modules() # Install required modules
-    # Verify ezruh build folder
-    folder_verification = verify.build.folders()
-    file_verification = verify.build.files()
-
-    repair_queue = repair.Queue()
-    repair_queue.add(files=file_verification["data"], folders=folder_verification["data"])
-
-    if not folder_verification["output"] or not file_verification["output"]:
+    if verify.ezruh_installed():
+        return
+    create_build_folder()
+    install_ezruh_build()
+    create_main_executable()
+    
+    if not verify.required_modules():
+        install_modules(modules.missing)
+    
+    # Verify Installation
+    missing_files = verify.build.files()
+    missing_folders = verify.build.folders()
+    
+    if missing_files or missing_folders:
+        repair_queue = repair.Queue()
+        repair_queue.add(files=missing_files, folders=missing_folders)
         repair(queue=repair_queue.setup_for_processing())
-    cleanup()
+    cleanup(cleanup_exclude.get()) # Making sure the ezruh build folder contains no unused files or folders
 
 if __name__ == "__main__":
     main()

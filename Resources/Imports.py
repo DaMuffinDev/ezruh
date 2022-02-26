@@ -1,4 +1,4 @@
-from Resources.required_modules import pymodules
+from .required_modules import pymodules
 pymodules.install(pymodules.presets.resources("imports"))
 
 from PyQt5.QtWidgets import \

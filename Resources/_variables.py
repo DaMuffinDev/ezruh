@@ -24,6 +24,16 @@ float_numbers = [
     0.96, 0.97, 0.98, 0.99, 1.0
 ]
 
+def mkfile(path):
+    with open(path, "x") as file:
+        file.close()
+
+def remove_spaces(_list, remove_dup=True):
+    _list = list(set(_list)) if remove_dup else _list
+    if '' in _list:
+        _list.remove('')
+    return _list
+
 def hash(text):
     return sha256(text.encode()).hexdigest()
 
@@ -130,8 +140,6 @@ class _install:
                 "pyautogui",
                 "keyboard",
                 "PyQt5",
-                "email",
-                "ssl",
                 pyinstaller[0],
                 pyinstaller[1]
             ])
@@ -161,5 +169,5 @@ class _install:
             return module in self.installed
 
 @_install
-def install(self):
+def rv_install(self):
     raise TypeError(f"{self} is not subscriptable.")

@@ -4,5 +4,3 @@ gitpython
 pyautogui
 keyboard
 PyQt5
-email
-ssl
